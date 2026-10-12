@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070b19"/>
+      <stop offset="50%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#030712"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#c084fc"/>
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.8" opacity="0.6"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="400" fill="url(#bg)"/>
+  <rect width="1200" height="400" fill="url(#grid)"/>
+
+  <circle cx="200" cy="200" r="140" fill="#38bdf8" opacity="0.08" filter="blur(40px)"/>
+  <circle cx="1000" cy="200" r="160" fill="#c084fc" opacity="0.08" filter="blur(50px)"/>
+
+  <!-- Logo Icon -->
+  <g transform="translate(120, 110)">
+    <polygon points="60,0 120,35 120,105 60,140 0,105 0,35" fill="none" stroke="url(#brand)" stroke-width="4"/>
+    <polygon points="60,25 95,45 95,95 60,115 25,95 25,45" fill="#0f172a" stroke="#818cf8" stroke-width="2"/>
+    <text x="60" y="80" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="900" fill="#38bdf8" text-anchor="middle">ZK</text>
+  </g>
+
+  <!-- Title & Subtitle -->
+  <text x="280" y="165" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="44" font-weight="800" fill="#ffffff" letter-spacing="-0.5">
+    Kite Agent ZK Attestation
+  </text>
+  <text x="280" y="210" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="400" fill="#94a3b8">
+    Zero-Knowledge Verifiable Execution &amp; x402 Micropayment Proof Relayer
+  </text>
+
+  <!-- Badges -->
+  <g transform="translate(280, 245)">
+    <rect x="0" y="0" width="145" height="32" rx="16" fill="#1e293b" stroke="#38bdf8" stroke-width="1.5"/>
+    <text x="72" y="21" font-family="monospace" font-size="13" font-weight="600" fill="#38bdf8" text-anchor="middle">Kite Chain 2368</text>
+
+    <rect x="160" y="0" width="135" height="32" rx="16" fill="#1e293b" stroke="#818cf8" stroke-width="1.5"/>
+    <text x="227" y="21" font-family="monospace" font-size="13" font-weight="600" fill="#818cf8" text-anchor="middle">ZK-SNARK / Groth16</text>
+
+    <rect x="310" y="0" width="130" height="32" rx="16" fill="#1e293b" stroke="#34d399" stroke-width="1.5"/>
+    <text x="375" y="21" font-family="monospace" font-size="13" font-weight="600" fill="#34d399" text-anchor="middle">x402 Micropay</text>
+
+    <rect x="455" y="0" width="115" height="32" rx="16" fill="#1e293b" stroke="#c084fc" stroke-width="1.5"/>
+    <text x="512" y="21" font-family="monospace" font-size="13" font-weight="600" fill="#c084fc" text-anchor="middle">Apache-2.0</text>
+  </g>
+</svg>
