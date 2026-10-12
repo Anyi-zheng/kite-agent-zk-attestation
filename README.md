@@ -25,24 +25,13 @@ Autonomous AI Agents operating in decentralized swarms require verifiable execut
 
 ## 🏗️ Architecture
 
-```
-+---------------------------+       +----------------------------+
-|   Off-Chain AI Agent      | ----> |  ZK Snark Prover Circuit   |
-| (Prompts, Memory, Actions)|       |  (Generates Proof & State) |
-+---------------------------+       +----------------------------+
-              |                                   |
-              v                                   v
-+---------------------------+       +----------------------------+
-| x402 Micropayment Receipt |       |  KiteZKAttestationRelay    |
-| (EIP-712 Facilitator v2)  | ----> |  (TypeScript Orchestrator) |
-+---------------------------+       +----------------------------+
-                                                  |
-                                                  v
-                                    +----------------------------+
-                                    |  KiteAgentZKAttestation    |
-                                    |  (On-Chain Solidity Vault) |
-                                    +----------------------------+
-```
+![Architecture](assets/architecture.svg)
+
+The attestation flow comprises three decoupled layers:
+1. **Autonomous Agent Layer**: Runs complex off-chain multi-turn reasoning, accumulates state digests, and executes micropayments via EIP-712 TransferWithAuthorization (x402).
+2. **Attestation Relay Layer**: Normalizes zero-knowledge witness proofs, asserts monotonic epoch increments, formats 4-slot public inputs, and communicates with Kite Chain RPC.
+3. **Kite Chain Protocol Layer (EIP-155: 2368/2366)**: Executes EVM pairing curve checks via `IKiteVerifier` and emits `AttestationAnchored` events for real-time telemetry indexing.
+
 
 ---
 
