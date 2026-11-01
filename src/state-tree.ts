@@ -1,4 +1,4 @@
-import { type Hex, hexToBytes, toHex } from 'viem';
+import { type Hex, concatHex, keccak256 } from 'viem';
 
 export interface MerkleStep {
   hash: Hex;
@@ -12,10 +12,12 @@ export class AgentStateTree {
   private leaves: Hex[] = [];
 
   constructor(initialLeaves: Hex[] = []) {
+    initialLeaves.forEach((leaf) => this.validateLeaf(leaf));
     this.leaves = [...initialLeaves];
   }
 
   public insertActionLeaf(actionHash: Hex): void {
+    this.validateLeaf(actionHash);
     this.leaves.push(actionHash);
   }
 
@@ -27,7 +29,7 @@ export class AgentStateTree {
     if (this.leaves.length === 0) {
       return ('0x' + '0'.repeat(64)) as Hex;
     }
-    let currentLevel = [...this.leaves];
+    let currentLevel = this.leaves.map((leaf) => keccak256(concatHex(['0x00', leaf])));
 
     while (currentLevel.length > 1) {
       const nextLevel: Hex[] = [];
@@ -45,17 +47,12 @@ export class AgentStateTree {
   }
 
   private hashPair(a: Hex, b: Hex): Hex {
-    const bytesA = hexToBytes(a);
-    const bytesB = hexToBytes(b);
-    const combined = new Uint8Array(bytesA.length + bytesB.length);
-    combined.set(bytesA);
-    combined.set(bytesB, bytesA.length);
-    
-    // Simple deterministic fold representation for demo
-    let val = 0n;
-    for (const byte of combined) {
-      val = (val << 8n) + BigInt(byte);
+    return keccak256(concatHex(['0x01', a, b]));
+  }
+
+  private validateLeaf(leaf: Hex): void {
+    if (!/^0x[0-9a-fA-F]{64}$/.test(leaf)) {
+      throw new Error('Action leaves must be 32-byte hex digests');
     }
-    return ('0x' + (val % (2n ** 256n)).toString(16).padStart(64, '0')) as Hex;
   }
 }
