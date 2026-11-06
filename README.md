@@ -73,3 +73,7 @@ function anchorAttestation(
 ## 📄 License
 
 Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
+
+## Batch commitment boundary
+
+The optimizer produces versioned hash commitments, not compressed or recursively verified proofs. See [batch-commitment-format.md](docs/batch-commitment-format.md) before migrating stored IDs or using the legacy foldProofs API.

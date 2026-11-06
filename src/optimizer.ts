@@ -1,5 +1,5 @@
-import { type Hex, hexToBigInt } from 'viem';
-import { AgentExecutionProof } from './types.js';
+import { encodeAbiParameters, keccak256, stringToHex, type Hex } from 'viem';
+import { AgentExecutionProofSchema, type AgentExecutionProof } from './types.js';
 
 export interface ProofCompressionMetrics {
   originalByteLength: number;
@@ -8,6 +8,12 @@ export interface ProofCompressionMetrics {
   foldedRecursionDepth: number;
 }
 
+export interface ProofBatchCommitment {
+  commitment: Hex;
+  proofDigests: Hex[];
+}
+
+/** Legacy result shape. aggregatedProof is a commitment, never a SNARK proof. */
 export interface RecursiveBatchNode {
   nodeId: Hex;
   depth: number;
@@ -15,74 +21,51 @@ export interface RecursiveBatchNode {
   subProofDigests: Hex[];
 }
 
+const itemDomain = keccak256(stringToHex('kite-proof-item-v1'));
+const batchDomain = keccak256(stringToHex('kite-proof-batch-v1'));
+
+function checkedProof(raw: AgentExecutionProof): AgentExecutionProof {
+  const proof = AgentExecutionProofSchema.parse(raw);
+  if (proof.computationEpoch >= 2n ** 256n || !/^0x(?:[0-9a-fA-F]{2})+$/.test(proof.zkProof)) {
+    throw new Error('Proof must contain whole bytes and a uint256 epoch');
+  }
+  return proof;
+}
+
 /**
- * SnarkRecursionOptimizer
- * Folds multiple discrete ZK agent execution proofs into a compact recursive verification graph
+ * Builds ordered batch commitments. This does not prove execution, verify a
+ * proof, compress proofs, or construct a recursive SNARK.
+ * The historical class name is retained for source compatibility.
  */
 export class SnarkRecursionOptimizer {
-  private recursionThreshold: number;
+  constructor(_recursionThreshold = 4) {}
 
-  constructor(recursionThreshold: number = 4) {
-    this.recursionThreshold = recursionThreshold;
-  }
-
-  /**
-   * Evaluates compression eligibility and potential byte reduction
-   */
+  /** No compression is performed; byte counts therefore remain equal. */
   public evaluateCompression(proofs: AgentExecutionProof[]): ProofCompressionMetrics {
-    if (proofs.length === 0) {
-      return {
-        originalByteLength: 0,
-        compressedByteLength: 0,
-        compressionRatio: 1,
-        foldedRecursionDepth: 0,
-      };
-    }
-
-    const originalByteLength = proofs.reduce((acc, p) => acc + (p.zkProof.length - 2) / 2, 0);
-    const depth = Math.ceil(Math.log2(Math.max(1, proofs.length)));
-    // Recursive Snark reduces multiple proof points to a constant O(1) envelope plus logarithmic state tree witnesses
-    const compressedByteLength = 128 + depth * 32;
-    const compressionRatio = Number((originalByteLength / Math.max(1, compressedByteLength)).toFixed(2));
-
-    return {
-      originalByteLength,
-      compressedByteLength,
-      compressionRatio,
-      foldedRecursionDepth: depth,
-    };
+    const originalByteLength = proofs.reduce((total, proof) => total + (checkedProof(proof).zkProof.length - 2) / 2, 0);
+    return { originalByteLength, compressedByteLength: originalByteLength, compressionRatio: 1, foldedRecursionDepth: 0 };
   }
 
-  /**
-   * Aggregates multiple proofs into a folded recursive verification node
-   */
-  public foldProofs(proofs: AgentExecutionProof[]): RecursiveBatchNode {
-    if (proofs.length === 0) {
-      throw new Error('Cannot fold an empty proof set');
-    }
-
-    const subProofDigests: Hex[] = proofs.map((p) => {
-      // Deterministic fingerprint of the individual zk proof string
-      const raw = p.zkProof.startsWith('0x') ? p.zkProof.slice(2) : p.zkProof;
-      return ('0x' + raw.padEnd(64, '0').slice(0, 64)) as Hex;
+  /** Commits complete proof bytes and public inputs, preserving batch order and duplicates. */
+  public commitProofs(proofs: AgentExecutionProof[]): ProofBatchCommitment {
+    if (proofs.length === 0) throw new Error('Cannot fold an empty proof set');
+    const proofDigests = proofs.map(raw => {
+      const proof = checkedProof(raw);
+      return keccak256(encodeAbiParameters(
+        [{ type: 'bytes32' }, { type: 'bytes32' }, { type: 'bytes32' }, { type: 'uint256' }, { type: 'bytes32' }, { type: 'bytes' }],
+        [itemDomain, proof.agentId, proof.stateHash, proof.computationEpoch, proof.x402ReceiptHash, proof.zkProof]
+      ));
     });
+    const commitment = keccak256(encodeAbiParameters(
+      [{ type: 'bytes32' }, { type: 'uint256' }, { type: 'bytes32[]' }],
+      [batchDomain, BigInt(proofDigests.length), proofDigests]
+    ));
+    return { commitment, proofDigests };
+  }
 
-    const depth = Math.ceil(Math.log2(proofs.length));
-    
-    // Synthesize recursive fold proof by XOR-combining accumulator values
-    let accumulator = 0n;
-    for (const digest of subProofDigests) {
-      accumulator ^= hexToBigInt(digest);
-    }
-
-    const aggregatedProof = ('0x' + accumulator.toString(16).padStart(64, '0')) as Hex;
-    const nodeId = ('0x' + (accumulator ^ BigInt(proofs.length)).toString(16).padStart(64, '0')) as Hex;
-
-    return {
-      nodeId,
-      depth,
-      aggregatedProof,
-      subProofDigests,
-    };
+  /** @deprecated Use commitProofs. These legacy fields describe a hash commitment only. */
+  public foldProofs(proofs: AgentExecutionProof[]): RecursiveBatchNode {
+    const { commitment, proofDigests } = this.commitProofs(proofs);
+    return { nodeId: commitment, depth: 0, aggregatedProof: commitment, subProofDigests: proofDigests };
   }
 }
