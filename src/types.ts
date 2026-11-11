@@ -8,7 +8,7 @@ export const AgentExecutionProofSchema = z.object({
   stateHash: z.string().refine((val): val is Hex => isHex(val) && val.length === 66, {
     message: 'stateHash must be a 32-byte hex string (0x...)',
   }),
-  computationEpoch: z.bigint().min(1n),
+  computationEpoch: z.bigint().min(1n).max(2n ** 256n - 1n),
   x402ReceiptHash: z.string().refine((val): val is Hex => isHex(val) && val.length === 66, {
     message: 'x402ReceiptHash must be a 32-byte hex string (0x...)',
   }),

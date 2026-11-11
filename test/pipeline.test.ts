@@ -5,7 +5,7 @@ import { AgentExecutionProof, KITE_TESTNET_CONFIG } from '../src/types.js';
 
 describe('BatchAttestationPipeline', () => {
   it('bundles and processes heterogeneous agent attestation batches', async () => {
-    const relay = new KiteZKAttestationRelay(KITE_TESTNET_CONFIG);
+    const relay = new KiteZKAttestationRelay(KITE_TESTNET_CONFIG, () => true);
     const pipeline = new BatchAttestationPipeline(relay);
 
     const proofs: AgentExecutionProof[] = [

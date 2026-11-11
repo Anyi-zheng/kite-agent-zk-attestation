@@ -13,11 +13,20 @@ import {
   KITE_TESTNET_CONFIG,
 } from './types.js';
 
+/** Implementations must bind the proof to these exact public inputs. */
+export type AttestationProofVerifier = (
+  proof: AgentExecutionProof,
+  publicInputs: readonly [Hex, Hex, Hex, Hex]
+) => boolean | Promise<boolean>;
+
 export class KiteZKAttestationRelay {
   private config: KiteNetworkConfig;
   private knownEpochs: Map<string, bigint> = new Map();
 
-  constructor(config: KiteNetworkConfig = KITE_TESTNET_CONFIG) {
+  constructor(
+    config: KiteNetworkConfig = KITE_TESTNET_CONFIG,
+    private readonly verifyProof?: AttestationProofVerifier
+  ) {
     this.config = config;
   }
 
@@ -64,8 +73,7 @@ export class KiteZKAttestationRelay {
       };
     }
 
-    // Verify mock ZK snark validity constraint (proof payload integrity check)
-    if (proof.zkProof.length < 10) {
+    if (!/^0x(?:[0-9a-fA-F]{2})+$/.test(proof.zkProof)) {
       return {
         valid: false,
         attestationDigest: digest,
@@ -73,6 +81,26 @@ export class KiteZKAttestationRelay {
         agentId: proof.agentId,
         rejectionReason: 'Invalid ZK proof payload byte length',
       };
+    }
+
+    if (!this.verifyProof) {
+      return { valid: false, attestationDigest: digest, epoch: proof.computationEpoch,
+        agentId: proof.agentId, rejectionReason: 'No proof verifier configured' };
+    }
+    try {
+      if (await this.verifyProof(proof, this.generateVerifierPublicInputs(proof)) !== true) {
+        return { valid: false, attestationDigest: digest, epoch: proof.computationEpoch,
+          agentId: proof.agentId, rejectionReason: 'Proof verification failed' };
+      }
+    } catch {
+      return { valid: false, attestationDigest: digest, epoch: proof.computationEpoch,
+        agentId: proof.agentId, rejectionReason: 'Proof verifier unavailable' };
+    }
+    // Verification may complete out of order; do not regress a concurrently accepted epoch.
+    const currentEpoch = this.knownEpochs.get(proof.agentId.toLowerCase()) ?? 0n;
+    if (proof.computationEpoch <= currentEpoch) {
+      return { valid: false, attestationDigest: digest, epoch: proof.computationEpoch,
+        agentId: proof.agentId, rejectionReason: 'Epoch rollback or replay detected after verification' };
     }
 
     // Anchor monotonic sequence in cache

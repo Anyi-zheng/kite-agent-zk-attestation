@@ -14,7 +14,8 @@ describe('KiteZKAttestationRelay', () => {
   };
 
   beforeEach(() => {
-    relay = new KiteZKAttestationRelay(KITE_TESTNET_CONFIG);
+    // Test fixture only: no cryptographic verification or on-chain anchoring.
+    relay = new KiteZKAttestationRelay(KITE_TESTNET_CONFIG, () => true);
   });
 
   it('computes deterministic keccak256 attestation digest', () => {
@@ -47,5 +48,44 @@ describe('KiteZKAttestationRelay', () => {
     expect(inputs[0]).toBe(validProof.agentId);
     expect(inputs[1]).toBe(validProof.stateHash);
     expect(inputs[3]).toBe(validProof.x402ReceiptHash);
+  });
+
+  it('fails closed without a verifier and does not accept arbitrary payloads', async () => {
+    const result = await new KiteZKAttestationRelay().verifyAttestationProof(validProof);
+    expect(result.valid).toBe(false);
+    expect(result.rejectionReason).toContain('No proof verifier');
+  });
+
+  it('does not consume epochs after invalid proofs or verifier errors', async () => {
+    let decision: boolean | Error = false;
+    const checked = new KiteZKAttestationRelay(KITE_TESTNET_CONFIG, (_proof, inputs) => {
+      expect(inputs[0]).toBe(validProof.agentId);
+      expect(inputs[1]).toBe(validProof.stateHash);
+      if (decision instanceof Error) throw decision;
+      return decision;
+    });
+    expect((await checked.verifyAttestationProof(validProof)).valid).toBe(false);
+    decision = new Error('offline');
+    expect((await checked.verifyAttestationProof(validProof)).valid).toBe(false);
+    decision = true;
+    expect((await checked.verifyAttestationProof(validProof)).valid).toBe(true);
+  });
+
+  it('rejects late lower epochs after concurrent verification', async () => {
+    let release!: () => void;
+    const pending = new Promise<void>(resolve => { release = resolve; });
+    const checked = new KiteZKAttestationRelay(KITE_TESTNET_CONFIG, async proof => {
+      if (proof.computationEpoch === 99n) await pending;
+      return true;
+    });
+    const older = checked.verifyAttestationProof({ ...validProof, computationEpoch: 99n });
+    expect((await checked.verifyAttestationProof(validProof)).valid).toBe(true);
+    release();
+    expect((await older).valid).toBe(false);
+  });
+
+  it('rejects epochs outside the ABI uint256 bound without calling a verifier', async () => {
+    const checked = new KiteZKAttestationRelay(KITE_TESTNET_CONFIG, () => { throw new Error('must not run'); });
+    expect((await checked.verifyAttestationProof({ ...validProof, computationEpoch: 2n ** 256n })).valid).toBe(false);
   });
 });
