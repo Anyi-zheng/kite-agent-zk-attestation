@@ -32,7 +32,7 @@ export class AttestationPrunerDaemon {
   }
 
   public recordAttestation(entry: EpochArchiveEntry): void {
-    this.archive.push(entry);
+    this.archive.push({ ...entry });
   }
 
   public getRecordCount(): number {
@@ -40,7 +40,7 @@ export class AttestationPrunerDaemon {
   }
 
   public getRecords(): readonly EpochArchiveEntry[] {
-    return [...this.archive];
+    return this.archive.map(entry => ({ ...entry }));
   }
 
   /**
