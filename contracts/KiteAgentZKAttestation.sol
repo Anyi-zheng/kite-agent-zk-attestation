@@ -52,6 +52,7 @@ contract KiteAgentZKAttestation {
     error StaleComputationEpoch(uint256 provided, uint256 current);
     error AttestationAlreadyExists(bytes32 digest);
     error Unauthorized();
+    error InvalidVerifier(address verifierAddress);
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert Unauthorized();
@@ -59,12 +60,14 @@ contract KiteAgentZKAttestation {
     }
 
     constructor(address _verifier) {
+        _requireVerifier(_verifier);
         owner = msg.sender;
         verifier = IKiteVerifier(_verifier);
         chainId = block.chainid;
     }
 
     function setVerifier(address _newVerifier) external onlyOwner {
+        _requireVerifier(_newVerifier);
         emit VerifierUpdated(address(verifier), _newVerifier);
         verifier = IKiteVerifier(_newVerifier);
     }
@@ -99,7 +102,8 @@ contract KiteAgentZKAttestation {
             revert AttestationAlreadyExists(attestationHash);
         }
 
-        if (address(verifier) != address(0)) {
+        {
+            _requireVerifier(address(verifier));
             uint256[4] memory publicInputs = [
                 uint256(agentId),
                 uint256(stateHash),
@@ -129,6 +133,10 @@ contract KiteAgentZKAttestation {
             msg.sender,
             x402ReceiptHash
         );
+    }
+
+    function _requireVerifier(address verifierAddress) private view {
+        if (verifierAddress.code.length == 0) revert InvalidVerifier(verifierAddress);
     }
 
     function keppetAttestationDigest(
