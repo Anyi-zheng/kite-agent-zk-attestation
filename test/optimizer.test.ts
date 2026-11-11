@@ -19,20 +19,21 @@ describe('SnarkRecursionOptimizer', () => {
     expect(metrics.compressedByteLength).toBe(0);
   });
 
-  it('calculates recursive depth and compression ratio for multi-proof batch', () => {
+  it('reports unchanged sizes because commitments do not compress proofs', () => {
     const batch = [mockProof(1n), mockProof(2n), mockProof(3n), mockProof(4n)];
     const metrics = optimizer.evaluateCompression(batch);
 
     expect(metrics.originalByteLength).toBe(512); // 4 * 128
-    expect(metrics.foldedRecursionDepth).toBe(2);
-    expect(metrics.compressionRatio).toBeGreaterThan(1);
+    expect(metrics.foldedRecursionDepth).toBe(0);
+    expect(metrics.compressedByteLength).toBe(512);
+    expect(metrics.compressionRatio).toBe(1);
   });
 
-  it('folds batch into deterministic aggregated recursive node', () => {
+  it('retains the legacy result shape without claiming recursion', () => {
     const batch = [mockProof(1n), mockProof(2n)];
     const folded = optimizer.foldProofs(batch);
 
-    expect(folded.depth).toBe(1);
+    expect(folded.depth).toBe(0);
     expect(folded.subProofDigests).toHaveLength(2);
     expect(folded.aggregatedProof.startsWith('0x')).toBe(true);
     expect(folded.nodeId.startsWith('0x')).toBe(true);
