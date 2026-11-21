@@ -75,13 +75,13 @@ export class BatchAttestationPipeline {
           }
           continue;
         }
+        batchSeenEpochs.set(proof.agentId.toLowerCase(), proof.computationEpoch);
       }
 
       const res = await this.relay.verifyAttestationProof(proof);
       if (res.valid) {
         summary.acceptedCount++;
         summary.anchoredDigests.push(res.attestationDigest);
-        batchSeenEpochs.set(proof.agentId.toLowerCase(), proof.computationEpoch);
       } else {
         summary.rejectedCount++;
         summary.rejections.push({

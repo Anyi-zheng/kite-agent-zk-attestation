@@ -120,6 +120,30 @@ describe("BatchAttestationPipeline", () => {
     expect(res.rejectedCount).toBe(1);
   });
 
+  it("keeps rejected proofs in the strict in-batch epoch sequence", async () => {
+    const relay = new KiteZKAttestationRelay(
+      KITE_TESTNET_CONFIG,
+      (proof) => proof.computationEpoch !== 100n
+    );
+    const pipeline = new BatchAttestationPipeline(relay);
+    const agentId = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+    const proofs = [100n, 99n, 101n].map((computationEpoch) => ({
+      agentId,
+      stateHash: "0x1111111111111111111111111111111111111111111111111111111111111111",
+      computationEpoch,
+      x402ReceiptHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+      zkProof: "0x1234567890abcdef",
+    }));
+
+    const res = await pipeline.processBatch({ proofs, strictEpochOrdering: true });
+    expect(res.totalProcessed).toBe(3);
+    expect(res.acceptedCount).toBe(1);
+    expect(res.rejectedCount).toBe(2);
+    expect(res.rejections[0].reason).toContain("Proof verification failed");
+    expect(res.rejections[1].reason).toContain("Strict ordering violation");
+    expect(res.anchoredDigests).toHaveLength(1);
+  });
+
   it("rejects malformed proofs without throwing when strictEpochOrdering is enabled", async () => {
     const relay = new KiteZKAttestationRelay(KITE_TESTNET_CONFIG, () => true);
     const pipeline = new BatchAttestationPipeline(relay);
