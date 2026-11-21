@@ -39,6 +39,12 @@ export class BatchAttestationPipeline {
   }
 
   public async processBatch(request: BatchAnchorRequest): Promise<BatchAnchorSummary> {
+    // Reject non-array input up front: iterating a string or Set would otherwise be
+    // reported as a batch of bogus per-character/per-item rejections.
+    if (!Array.isArray(request?.proofs)) {
+      throw new TypeError("request.proofs must be an array of attestation proofs");
+    }
+
     const summary: BatchAnchorSummary = {
       totalProcessed: 0,
       acceptedCount: 0,

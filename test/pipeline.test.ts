@@ -139,4 +139,12 @@ describe("BatchAttestationPipeline", () => {
     expect(res.rejectedCount).toBe(1);
     expect(res.rejections[0].reason).toContain("Schema validation failed");
   });
+
+  it.each(["abc", new Set([1]), undefined, null, {}])(
+    "throws a TypeError instead of iterating a non-array proofs value (%s)",
+    async (proofs) => {
+      const pipeline = new BatchAttestationPipeline(new KiteZKAttestationRelay());
+      await expect(pipeline.processBatch({ proofs } as never)).rejects.toThrow(TypeError);
+    }
+  );
 });
