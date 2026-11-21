@@ -36,6 +36,7 @@ export function verifyInclusionPath(action: Hex, path: readonly MerkleStep[], ro
  */
 export class AgentStateTree {
   private leaves: Hex[] = [];
+  private levels?: Hex[][];
 
   constructor(initialLeaves: Hex[] = []) {
     initialLeaves.forEach((leaf) => this.validateLeaf(leaf));
@@ -45,6 +46,7 @@ export class AgentStateTree {
   public insertActionLeaf(actionHash: Hex): void {
     this.validateLeaf(actionHash);
     this.leaves.push(actionHash);
+    this.levels = undefined;
   }
 
   public getLeafCount(): number {
@@ -55,7 +57,8 @@ export class AgentStateTree {
     if (this.leaves.length === 0) {
       return ('0x' + '0'.repeat(64)) as Hex;
     }
-    return this.reduceTree();
+    const levels = this.getLevels();
+    return levels[levels.length - 1][0];
   }
 
   /** Sibling hashes ordered from the leaf toward the root. */
@@ -64,22 +67,22 @@ export class AgentStateTree {
       throw new RangeError('Leaf index outside the state tree');
     }
     const steps: MerkleStep[] = [];
-    this.reduceTree({ index, steps });
+    for (const level of this.getLevels()) {
+      const isRight = index % 2 === 1;
+      const sibling = isRight ? index - 1 : index + 1;
+      if (sibling < level.length) {
+        steps.push({ hash: level[sibling], position: isRight ? 'left' : 'right' });
+      }
+      index = Math.floor(index / 2);
+    }
     return steps;
   }
 
-  private reduceTree(path?: { index: number; steps: MerkleStep[] }): Hex {
+  private getLevels(): Hex[][] {
+    if (this.levels) return this.levels;
     let currentLevel = this.leaves.map(hashLeaf);
-
+    const levels = [currentLevel];
     while (currentLevel.length > 1) {
-      if (path) {
-        const isRight = path.index % 2 === 1;
-        const sibling = isRight ? path.index - 1 : path.index + 1;
-        if (sibling < currentLevel.length) {
-          path.steps.push({ hash: currentLevel[sibling], position: isRight ? 'left' : 'right' });
-        }
-        path.index = Math.floor(path.index / 2);
-      }
       const nextLevel: Hex[] = [];
       for (let i = 0; i < currentLevel.length; i += 2) {
         if (i + 1 < currentLevel.length) {
@@ -88,10 +91,12 @@ export class AgentStateTree {
           nextLevel.push(currentLevel[i]);
         }
       }
+      levels.push(nextLevel);
       currentLevel = nextLevel;
     }
 
-    return currentLevel[0];
+    this.levels = levels;
+    return levels;
   }
 
   private validateLeaf(leaf: Hex): void {

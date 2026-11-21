@@ -69,6 +69,21 @@ describe('action inclusion paths', () => {
     });
   }
 
+  it('rebuilds proofs after appends and isolates previously returned paths', () => {
+    const tree = new AgentStateTree();
+    for (const [index, leaf] of leaves.entries()) {
+      tree.insertActionLeaf(leaf);
+      const root = new AgentStateTree(leaves.slice(0, index + 1)).getRoot();
+      expect(tree.getRoot()).toBe(root);
+      for (let i = 0; i <= index; i++) {
+        const path = tree.getInclusionPath(i);
+        expect(verifyInclusionPath(leaves[i], path, root)).toBe(true);
+        if (path.length) path[0].hash = '0x';
+        expect(verifyInclusionPath(leaves[i], tree.getInclusionPath(i), root)).toBe(true);
+      }
+    }
+  });
+
   it('rejects indices without an existing leaf', () => {
     const tree = new AgentStateTree(leaves);
     for (const index of [-1, 0.5, NaN, Infinity, leaves.length]) {

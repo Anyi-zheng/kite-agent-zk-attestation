@@ -24,6 +24,9 @@ then apply the tagged internal hash. Compare the final hash to the trusted
 state root in the Kite attestation. Promoted nodes have no step. A
 single-action tree has an empty path. Invalid indices throw RangeError.
 Generate a fresh path after appending actions to match the new root.
+The first root or path query on a nonempty tree builds and retains O(n)
+hashes. Until the next append, reading the root takes O(1) time and
+generating another path takes O(log n) time.
 
 The reader can call the exported helper directly:
 
