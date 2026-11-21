@@ -29,3 +29,26 @@ describe('AttestationPrunerDaemon constructor validation', () => {
     expect(daemon.getRecordCount()).toBe(1);
   });
 });
+
+describe('AttestationPrunerDaemon.recordAttestation validation', () => {
+  const valid = { agentId: agent, epoch: 1n, anchoredTimestamp: Date.now(), attestationDigest: digest };
+
+  it.each([
+    ['agentId', { agentId: undefined }],
+    ['agentId', { agentId: 'not-hex' }],
+    ['attestationDigest', { attestationDigest: 12 }],
+    ['epoch', { epoch: 'abc' }],
+    ['epoch', { epoch: 0n }],
+    ['epoch', { epoch: 2n ** 256n }],
+  ])('rejects a malformed %s without storing the entry', (_field, override) => {
+    const daemon = new AttestationPrunerDaemon();
+    expect(() => daemon.recordAttestation({ ...valid, ...override } as never)).toThrow();
+    expect(daemon.getRecordCount()).toBe(0);
+    expect(() => daemon.getRecordsByAgent(agent)).not.toThrow();
+    expect(() => daemon.prune({ targetAgentIds: [agent] })).not.toThrow();
+  });
+
+  it('rejects a non-object entry', () => {
+    expect(() => new AttestationPrunerDaemon().recordAttestation(null as never)).toThrow(TypeError);
+  });
+});

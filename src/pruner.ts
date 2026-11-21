@@ -1,4 +1,4 @@
-import { type Hex } from 'viem';
+import { type Hex, isHex } from 'viem';
 
 export interface PruningFilter {
   maxAgeMs?: number;
@@ -29,6 +29,23 @@ function assertMaxAgeMs(value: number, field: string): void {
   }
 }
 
+function assertHexString(value: unknown, field: string): void {
+  if (typeof value !== 'string' || !isHex(value)) {
+    throw new TypeError(`${field} must be a hex string (0x...)`);
+  }
+}
+
+function assertEntry(entry: EpochArchiveEntry): void {
+  if (typeof entry !== 'object' || entry === null) {
+    throw new TypeError('entry must be an object');
+  }
+  assertHexString(entry.agentId, 'agentId');
+  assertHexString(entry.attestationDigest, 'attestationDigest');
+  if (typeof entry.epoch !== 'bigint' || entry.epoch < 1n || entry.epoch >= 2n ** 256n) {
+    throw new RangeError('epoch must be a bigint between 1 and 2^256 - 1');
+  }
+}
+
 /**
  * AttestationPrunerDaemon
  * Manages cache lifecycle and purges expired epoch attestation proofs from local hot storage
@@ -49,6 +66,7 @@ export class AttestationPrunerDaemon {
   }
 
   public recordAttestation(entry: EpochArchiveEntry): void {
+    assertEntry(entry);
     if (!Number.isFinite(entry.anchoredTimestamp) || entry.anchoredTimestamp <= 0) {
       throw new RangeError('anchoredTimestamp must be a positive finite number');
     }
