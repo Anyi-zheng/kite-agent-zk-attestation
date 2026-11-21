@@ -22,6 +22,10 @@ export async function executeWithJitterRetry<T>(
     throw new RangeError('maxDelayMs must be a non-negative finite number');
   }
 
+  if (shouldRetry !== undefined && typeof shouldRetry !== 'function') {
+    throw new TypeError('shouldRetry must be a function');
+  }
+
   let attempt = 0;
 
   while (true) {
