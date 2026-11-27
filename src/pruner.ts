@@ -128,6 +128,11 @@ export class AttestationPrunerDaemon {
       throw new RangeError('retentionEpochThreshold must be a non-negative bigint');
     }
     if (filter.targetAgentIds !== undefined) {
+      // An empty string is iterable and falsy: it would pass the entry check below and
+      // then drop the whitelist, widening the prune to every agent.
+      if (!Array.isArray(filter.targetAgentIds)) {
+        throw new TypeError('targetAgentIds must be an array of hex strings');
+      }
       for (const id of filter.targetAgentIds) {
         if (!isHex(id)) {
           throw new Error('targetAgentIds entries must be hex strings');

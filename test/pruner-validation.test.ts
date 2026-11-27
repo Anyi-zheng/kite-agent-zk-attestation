@@ -52,3 +52,22 @@ describe('AttestationPrunerDaemon.recordAttestation validation', () => {
     expect(() => new AttestationPrunerDaemon().recordAttestation(null as never)).toThrow(TypeError);
   });
 });
+
+describe('AttestationPrunerDaemon targetAgentIds validation', () => {
+  it.each([
+    ['an empty string', ''],
+    ['a single agent ID string', agent],
+    ['null', null],
+    ['a Set', new Set([agent])],
+  ])('rejects %s without pruning or previewing', (_label, targetAgentIds) => {
+    const daemon = new AttestationPrunerDaemon(1000);
+    daemon.recordAttestation({ agentId: agent, epoch: 1n, anchoredTimestamp: 1, attestationDigest: digest });
+    const filter = { targetAgentIds } as never;
+
+    for (const run of [() => daemon.prune(filter), () => daemon.previewPrune(filter)]) {
+      expect(run).toThrow(TypeError);
+      expect(run).toThrow('targetAgentIds must be an array of hex strings');
+    }
+    expect(daemon.getRecordCount()).toBe(1);
+  });
+});
