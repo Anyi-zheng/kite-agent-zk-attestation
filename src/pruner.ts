@@ -98,10 +98,25 @@ export class AttestationPrunerDaemon {
   }
 
   public getRecordsByAgent(agentId: Hex): readonly EpochArchiveEntry[] {
+    if (!isHex(agentId)) {
+      throw new TypeError('agentId must be a hex string (0x...)');
+    }
     const target = agentId.toLowerCase();
     return this.archive
       .filter((entry) => entry.agentId.toLowerCase() === target)
       .map((entry) => ({ ...entry }));
+  }
+
+  /**
+   * Lists the distinct agentIds currently present in the archive, lowercased and sorted.
+   * Useful for operators to discover which agents are tracked before running selective pruning.
+   */
+  public getTrackedAgents(): Hex[] {
+    const agents = new Set<string>();
+    for (const entry of this.archive) {
+      agents.add(entry.agentId.toLowerCase());
+    }
+    return [...agents].sort() as Hex[];
   }
 
   /**
