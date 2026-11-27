@@ -140,6 +140,40 @@ describe('AttestationPrunerDaemon', () => {
     expect(records[0].epoch).toBe(1n);
   });
 
+  it('rejects a malformed agentId on getRecordsByAgent', () => {
+    for (const bad of ['not-hex', '', undefined, 42]) {
+      expect(() => daemon.getRecordsByAgent(bad as unknown as Hex)).toThrow(TypeError);
+    }
+    expect(daemon.getRecordCount()).toBe(0);
+  });
+
+  it('lists distinct tracked agents lowercased and sorted', () => {
+    daemon.recordAttestation({
+      agentId: '0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB',
+      epoch: 1n,
+      anchoredTimestamp: Date.now(),
+      attestationDigest: '0x01',
+    });
+    daemon.recordAttestation({
+      agentId: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      epoch: 2n,
+      anchoredTimestamp: Date.now(),
+      attestationDigest: '0x02',
+    });
+    daemon.recordAttestation({
+      agentId: '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      epoch: 3n,
+      anchoredTimestamp: Date.now(),
+      attestationDigest: '0x03',
+    });
+
+    expect(daemon.getTrackedAgents()).toEqual([
+      '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    ]);
+    expect(new AttestationPrunerDaemon().getTrackedAgents()).toEqual([]);
+  });
+
   it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
     'rejects invalid retained capacity %s at construction',
     (value) => {
