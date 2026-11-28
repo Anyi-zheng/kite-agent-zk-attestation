@@ -104,11 +104,12 @@ export class BatchAttestationPipeline {
       if (res.valid) {
         summary.acceptedCount++;
         summary.anchoredDigests.push(res.attestationDigest);
-        const key = proof.agentId.toLowerCase();
-        batchSeenEpochs.set(key, proof.computationEpoch);
+        // await 期间原证明对象可能已被调用方复用，归因只能使用中继实际验证的结果。
+        const key = res.agentId.toLowerCase();
+        batchSeenEpochs.set(key, res.epoch);
         const previous = acceptedEpochs.get(key);
-        if (previous === undefined || proof.computationEpoch > previous) {
-          acceptedEpochs.set(key, proof.computationEpoch);
+        if (previous === undefined || res.epoch > previous) {
+          acceptedEpochs.set(key, res.epoch);
         }
       } else {
         summary.rejectedCount++;
