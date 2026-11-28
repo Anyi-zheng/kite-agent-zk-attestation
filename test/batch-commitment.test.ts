@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
 import { encodeAbiParameters, keccak256, stringToHex } from 'viem';
 import { SnarkRecursionOptimizer } from '../src/optimizer.js';
@@ -24,6 +25,16 @@ describe('ordered proof batch commitments', () => {
     expect(optimizer.commitProofs([p])).toEqual({commitment: expected, proofDigests: [digest]});
     expect(optimizer.foldProofs([p])).toMatchObject({nodeId: expected, aggregatedProof: expected, depth: 0});
   });
+  it('matches the published cross-language batch vector', () => {
+    const fixture = JSON.parse(readFileSync(new URL('../docs/batch-commitment-v1.json', import.meta.url), 'utf8'));
+    const proofs = fixture.proofs.map((item: Omit<AgentExecutionProof, 'computationEpoch'> & { computationEpoch: string }) => ({
+      ...item, computationEpoch: BigInt(item.computationEpoch),
+    }));
+    expect(optimizer.commitProofs(proofs)).toEqual({
+      proofDigests: fixture.proofDigests, commitment: fixture.commitment,
+    });
+  });
+
   it('rejects empty batches, partial proof bytes and out-of-range epochs', () => {
     expect(() => optimizer.commitProofs([])).toThrow();
     for (const p of [{...proof(), zkProof: '0x1' as const}, {...proof(), computationEpoch: 2n ** 256n}]) expect(() => optimizer.commitProofs([p])).toThrow();
