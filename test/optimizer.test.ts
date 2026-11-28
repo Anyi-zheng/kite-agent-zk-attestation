@@ -39,6 +39,12 @@ describe('SnarkRecursionOptimizer', () => {
     expect(folded.nodeId.startsWith('0x')).toBe(true);
   });
 
+  it('reports malformed proofs with the same message as the relay', () => {
+    const jsonEpoch = { ...mockProof(1n), computationEpoch: '1' } as unknown as AgentExecutionProof;
+    expect(() => optimizer.commitProofs([jsonEpoch])).toThrow('Invalid attestation proof');
+    expect(() => optimizer.evaluateCompression([{ ...mockProof(1n), zkProof: '0x1' }])).toThrow('Invalid attestation proof');
+  });
+
   it('throws on empty proof folding', () => {
     expect(() => optimizer.foldProofs([])).toThrow('Cannot fold an empty proof set');
   });
