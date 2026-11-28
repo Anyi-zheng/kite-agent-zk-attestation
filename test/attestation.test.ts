@@ -58,7 +58,21 @@ describe('KiteZKAttestationRelay', () => {
     expect(inputs).toHaveLength(4);
     expect(inputs[0]).toBe(validProof.agentId);
     expect(inputs[1]).toBe(validProof.stateHash);
+    expect(inputs[2]).toBe('0x' + '0'.repeat(62) + '64');
     expect(inputs[3]).toBe(validProof.x402ReceiptHash);
+  });
+
+  it('rejects malformed proofs before formatting verifier public inputs', () => {
+    // A JSON-decoded epoch is a string. toHex would encode it as UTF-8 ("100" -> 0x313030)
+    // and silently build public inputs for a different epoch instead of failing.
+    const jsonEpoch = { ...validProof, computationEpoch: '100' } as unknown as AgentExecutionProof;
+    expect(() => relay.generateVerifierPublicInputs(jsonEpoch)).toThrow('Invalid attestation proof');
+
+    const unsafeNumberEpoch = { ...validProof, computationEpoch: 2 ** 53 } as unknown as AgentExecutionProof;
+    expect(() => relay.generateVerifierPublicInputs(unsafeNumberEpoch)).toThrow('Invalid attestation proof');
+
+    const shortStateHash = { ...validProof, stateHash: '0x1234' } as unknown as AgentExecutionProof;
+    expect(() => relay.generateVerifierPublicInputs(shortStateHash)).toThrow('Invalid attestation proof');
   });
 
   it('fails closed without a verifier and does not accept arbitrary payloads', async () => {
