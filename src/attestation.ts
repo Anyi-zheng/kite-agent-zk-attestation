@@ -22,6 +22,21 @@ export type AttestationProofVerifier = (
   publicInputs: readonly [Hex, Hex, Hex, Hex]
 ) => boolean | Promise<boolean>;
 
+/**
+ * Validates a proof at a public boundary. Every method that turns a proof into
+ * digest or verifier bytes must call this first: `toHex` treats a non-bigint
+ * epoch as UTF-8 text, so an unchecked JSON-decoded epoch would silently format
+ * public inputs for a different epoch.
+ */
+function parseProofOrThrow(raw: unknown): AgentExecutionProof {
+  const parseResult = AgentExecutionProofSchema.safeParse(raw);
+  if (!parseResult.success) {
+    const issues = parseResult.error.issues.map((i) => i.message).join(', ');
+    throw new Error(`Invalid attestation proof: ${issues}`);
+  }
+  return parseResult.data;
+}
+
 function validateNetworkConfig(config: KiteNetworkConfig): void {
   if (typeof config.name !== 'string' || !config.name.trim()) {
     throw new Error('Network name must not be empty');
@@ -74,12 +89,7 @@ export class KiteZKAttestationRelay {
    * instead of propagating low-level ABI encoding errors.
    */
   public computeAttestationDigest(proof: AgentExecutionProof): Hex {
-    const parseResult = AgentExecutionProofSchema.safeParse(proof);
-    if (!parseResult.success) {
-      const issues = parseResult.error.issues.map((i) => i.message).join(', ');
-      throw new Error(`Invalid attestation proof: ${issues}`);
-    }
-    const validated = parseResult.data;
+    const validated = parseProofOrThrow(proof);
     return keccak256(
       encodePacked(
         ['bytes32', 'bytes32', 'uint256', 'bytes32'],
@@ -168,14 +178,17 @@ export class KiteZKAttestationRelay {
   }
 
   /**
-   * Generates public inputs vector formatted for EVM Snark verifier contract
+   * Generates public inputs vector formatted for EVM Snark verifier contract.
+   * The proof is validated first so a malformed epoch cannot be silently
+   * re-encoded as UTF-8 bytes in the uint256 slot.
    */
   public generateVerifierPublicInputs(proof: AgentExecutionProof): readonly [Hex, Hex, Hex, Hex] {
+    const validated = parseProofOrThrow(proof);
     return [
-      proof.agentId,
-      proof.stateHash,
-      pad(toHex(proof.computationEpoch), { size: 32 }),
-      proof.x402ReceiptHash,
+      validated.agentId,
+      validated.stateHash,
+      pad(toHex(validated.computationEpoch), { size: 32 }),
+      validated.x402ReceiptHash,
     ];
   }
 
