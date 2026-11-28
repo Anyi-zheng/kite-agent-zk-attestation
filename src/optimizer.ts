@@ -25,11 +25,12 @@ const itemDomain = keccak256(stringToHex('kite-proof-item-v1'));
 const batchDomain = keccak256(stringToHex('kite-proof-batch-v1'));
 
 function checkedProof(raw: AgentExecutionProof): AgentExecutionProof {
-  const proof = AgentExecutionProofSchema.parse(raw);
-  if (proof.computationEpoch >= 2n ** 256n || !/^0x(?:[0-9a-fA-F]{2})+$/.test(proof.zkProof)) {
-    throw new Error('Proof must contain whole bytes and a uint256 epoch');
+  const parseResult = AgentExecutionProofSchema.safeParse(raw);
+  if (!parseResult.success) {
+    const issues = parseResult.error.issues.map((i) => i.message).join(', ');
+    throw new Error(`Invalid attestation proof: ${issues}`);
   }
-  return proof;
+  return parseResult.data;
 }
 
 function assertProofArray(proofs: unknown): asserts proofs is AgentExecutionProof[] {
